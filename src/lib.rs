@@ -6,6 +6,7 @@ use std::ops::{Add, Sub, Mul, Neg};
 use ndarray::{LinalgScalar, Shape};
 use ndarray::prelude::*;
 
+#[derive(Clone, Debug)]
 pub enum ParameterInit<A: LinalgScalar> {
     Value(ArrayD<A>),
 }
@@ -13,14 +14,10 @@ pub enum ParameterInit<A: LinalgScalar> {
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ParameterId(usize);
 
-pub struct ParameterDefs<A: LinalgScalar>(Vec<ParameterInit<A>>);
-
 pub struct ParameterValues<A: LinalgScalar>(Vec<ArrayD<A>>);
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct InputId(usize);
-
-pub struct InputDefs(Vec<Shape<IxDyn>>);
 
 pub struct InputValues<A: LinalgScalar>(Vec<ArrayD<A>>);
 
@@ -30,11 +27,35 @@ pub struct NodeRef<A: LinalgScalar>(Rc<Node<A>>);
 #[derive(Clone)]
 pub enum Node<A: LinalgScalar> {
     Constant(ArrayD<A>),
-    Parameter(ParameterId),
-    Input(InputId),
+    Parameter(ParameterId, ParameterInit<A>),
+    Input(InputId, Shape<IxDyn>),
     Neg(NodeRef<A>),
     Add(NodeRef<A>, NodeRef<A>),
     Mul(NodeRef<A>, NodeRef<A>),
+}
+
+pub struct Graph<A: LinalgScalar> {
+    name_path: Vec<String>,
+    parameters: Vec<NodeRef<A>>,
+    inputs: Vec<NodeRef<A>>,
+}
+
+impl<A: LinalgScalar> Graph<A> {
+    pub fn new() -> Graph<A> {
+        Graph {
+            name_path: Vec::new(),
+            parameters: Vec::new(),
+            inputs: Vec::new(),
+        }
+    }
+
+    //pub fn input(&mut self, 
+
+    pub fn constant(&mut self, value: ArrayD<A>) -> NodeRef<A> {
+        NodeRef::new(Node::Constant(value))
+    }
+
+    pub fn 
 }
 
 impl<A: LinalgScalar> ParameterInit<A> {
@@ -42,26 +63,6 @@ impl<A: LinalgScalar> ParameterInit<A> {
         match self {
             ParameterInit::Value(value) => value.clone(),
         }
-    }
-}
-
-impl<A: LinalgScalar> ParameterDefs<A> {
-    fn create(&mut self, init: ParameterInit<A>) -> ParameterId {
-        self.0.push(init);
-        ParameterId(self.0.len() - 1)
-    }
-}
-
-impl<A: LinalgScalar> ParameterValues<A> {
-    pub fn init(defs: &ParameterDefs<A>) -> Self {
-        ParameterValues(defs.0.iter().map(|init| init.init()).collect())
-    }
-}
-
-impl InputDefs {
-    fn create(&mut self, shape: Shape<IxDyn>) -> InputId {
-        self.0.push(shape);
-        InputId(self.0.len() - 1)
     }
 }
 
@@ -104,19 +105,4 @@ impl<'a, A: LinalgScalar> Mul for &'a NodeRef<A> {
     fn mul(self, other: &'a NodeRef<A>) -> NodeRef<A> {
         NodeRef::new(Node::Mul(self.clone(), other.clone()))
     }
-}
-
-pub fn constant<A: LinalgScalar>(value: ArrayD<A>) -> NodeRef<A> {
-    NodeRef::new(Node::Constant(value))
-}
-
-pub fn parameter<A: LinalgScalar>(
-    defs: &mut ParameterDefs<A>,
-    init: ParameterInit<A>,
-) -> NodeRef<A> {
-    NodeRef::new(Node::Parameter(defs.create(init)))
-}
-
-pub fn input<A: LinalgScalar>(defs: &mut InputDefs, shape: Shape<IxDyn>) -> NodeRef<A> {
-    NodeRef::new(Node::Input(defs.create(shape)))
 }
